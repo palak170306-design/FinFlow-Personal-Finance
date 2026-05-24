@@ -31,6 +31,32 @@ router.post("/", async (req, res) => {
     res.status(201).json(expense);
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
+
+// GET /api/expenses/export — download all transactions as CSV
+router.get("/export", async (req, res) => {
+  try {
+    const expenses = await Expense.find({ userId: USER }).sort({ date: -1 });
+
+    const headers = ["Date", "Label", "Category", "Type", "Amount", "Notes"];
+
+    const rows = expenses.map(e => [
+      new Date(e.date).toLocaleDateString("en-IN"),
+      `"${e.label.replace(/"/g, '""')}"`,   // escape quotes inside label
+      e.category,
+      e.type,
+      e.amount,
+      `"${(e.notes || "").replace(/"/g, '""')}"`,
+    ]);
+
+    const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", 'attachment; filename="finflow-transactions.csv"');
+    res.send(csv);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
  
 // PUT  /api/expenses/:id
 router.put("/:id", async (req, res) => {
@@ -53,6 +79,8 @@ router.delete("/:id", async (req, res) => {
     res.json({ message: "Deleted" });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+
  
 // GET /api/expenses/analytics  — need vs want breakdown by month
 router.get("/analytics", async (req, res) => {
@@ -73,5 +101,7 @@ router.get("/analytics", async (req, res) => {
     res.json(agg);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+
  
 module.exports = router;
