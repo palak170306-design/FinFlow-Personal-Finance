@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { getExpenses, createExpense, deleteExpense } from "../api";
+import { getExpenses, createExpense, deleteExpense, exportExpenses} from "../api";
 import { C, fmt, MetricCard, SectionTitle, Pill, Spinner, ErrorBox, CAT_ICON, CATEGORIES } from "../shared";
 
 const EMPTY = { date: "", category: "Food", label: "", amount: "", type: "need", notes: "" };
@@ -41,6 +41,22 @@ export default function ExpenseTracker() {
       setExpenses(p => p.filter(e => e._id !== id));
     } catch (e) { setError(e.response?.data?.error || "Failed to delete"); }
   };
+
+  const handleExport = async () => {
+  try {
+    const { data } = await exportExpenses();
+    const url  = URL.createObjectURL(new Blob([data], { type: "text/csv" }));
+    const link = document.createElement("a");
+    link.href  = url;
+    link.setAttribute("download", "finflow-transactions.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    setError("Failed to export transactions");
+  }
+};
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const needSpend  = expenses.filter(e => e.type === "need").reduce((s, e) => s + e.amount, 0);
@@ -148,6 +164,21 @@ export default function ExpenseTracker() {
                     cursor: "pointer", fontSize: 11, fontWeight: 600, textTransform: "capitalize",
                   }}>{f}</button>
               ))}
+               <button
+                  onClick={handleExport}
+                  disabled={expenses.length === 0}
+                  style={{
+                    padding: "5px 14px", borderRadius: 20,
+                    border: `1px solid ${C.green}`,
+                    background: C.green + "22",
+                    color: C.green,
+                    cursor: expenses.length === 0 ? "not-allowed" : "pointer",
+                    fontSize: 11, fontWeight: 600,
+                    opacity: expenses.length === 0 ? 0.5 : 1,
+                  }}
+                >
+                  ⬇ Export CSV
+                </button>
             </div>
           </div>
 
