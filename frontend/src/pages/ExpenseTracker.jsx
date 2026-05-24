@@ -86,81 +86,29 @@ export default function ExpenseTracker() {
     }
   };
 
-  const downloadCsv = (csv, filename = "finflow-transactions.csv") => {
-    const blob = new Blob([csv], { type: "text/csv" });
 
-    if (window.navigator?.msSaveOrOpenBlob) {
-      window.navigator.msSaveOrOpenBlob(blob, filename);
-      return;
-    }
-
+ const handleExport = async () => {
+  if (!expenses || expenses.length === 0) {
+    setError("No transactions available to export.");
+    return;
+  }
+  try {
+    const response = await exportExpenses();
+    const blob = response.data instanceof Blob
+      ? response.data
+      : new Blob([response.data], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", filename);
+    link.setAttribute("download", "finflow-transactions.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
-
-  const buildCsv = (items) => {
-    const headers = ["Date", "Label", "Category", "Type", "Amount", "Notes"];
-    const escape = (value) => {
-      const text = value == null ? "" : String(value);
-      return text.includes(",") || text.includes("\n") || text.includes('"')
-        ? `"${text.replace(/"/g, '""')}"`
-        : text;
-    };
-
-    const rows = items.map((item) => [
-      new Date(item.date).toLocaleDateString("en-IN"),
-      escape(item.label),
-      escape(item.category),
-      escape(item.type),
-      item.amount,
-      escape(item.notes),
-    ]);
-
-    return [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
-  };
-
-  const handleExport = async () => {
-    if (!expenses || expenses.length === 0) {
-      setError("No transactions available to export.");
-      return;
-    }
-
-    try {
-      const response = await exportExpenses();
-      const blob =
-        response.data instanceof Blob
-          ? response.data
-          : new Blob([response.data], { type: "text/csv" });
-      const filename = "finflow-transactions.csv";
-
-      if (window.navigator?.msSaveOrOpenBlob) {
-        window.navigator.msSaveOrOpenBlob(blob, filename);
-      } else {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", filename);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }
-    } catch (e) {
-      console.warn(
-        "Export endpoint failed, falling back to client-side CSV export.",
-        e,
-      );
-      const csv = buildCsv(expenses);
-      downloadCsv(csv);
-      
-    }
-  };
+  } catch (e) {
+    setError("Failed to export transactions. Please try again.");
+  }
+};
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const needSpend = expenses
